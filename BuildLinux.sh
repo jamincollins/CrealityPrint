@@ -180,6 +180,7 @@ then
         -DSLIC3R_STATIC=1 \
         -DORCA_TOOLS=ON \
         -DGENERATE_ORCA_HEADER=0 \
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
         ${BUILD_ARGS}
     echo "done"
     echo "Building CrealityPrint ..."
