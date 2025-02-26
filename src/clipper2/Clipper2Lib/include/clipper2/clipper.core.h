@@ -20,7 +20,7 @@
 
 //#define NO_EXCEPTIONS
 
-namespace Clipper2Lib 
+namespace Clipper2Lib
 {
 
 #ifndef NO_EXCEPTIONS
@@ -30,12 +30,12 @@ namespace Clipper2Lib
 
 	static double const PI = 3.141592653589793238;
 	static int64_t const MAX_COORD = LLONG_MAX / 2;
-	
+
 	//By far the most widely used filling rules for polygons are EvenOdd
 	//and NonZero, sometimes called Alternate and Winding respectively.
 	//https://en.wikipedia.org/wiki/Nonzero-rule
 	enum class FillRule { EvenOdd, NonZero, Positive, Negative };
-	
+
 // Point ------------------------------------------------------------------------
 
 template <typename T>
@@ -114,7 +114,7 @@ struct Point {
 	Point(const T2 x_, const T2 y_) { Init(x_, y_); }
 
 	template <typename T2>
-	explicit Point<T>(const Point<T2>& p) { Init(p.x, p.y); }
+	explicit Point(const Point<T2>& p) { Init(p.x, p.y); }
 
 	Point operator * (const double scale) const
 	{
@@ -128,7 +128,7 @@ struct Point {
 	}
 #endif
 
-	friend bool operator==(const Point &a, const Point &b) 
+	friend bool operator==(const Point &a, const Point &b)
 	{
 		return a.x == b.x && a.y == b.y;
 	}
@@ -270,7 +270,7 @@ inline bool NearEqual(const Point<T>& p1,
 }
 
 template<typename T>
-inline Path<T> StripNearEqual(const Path<T>& path, 
+inline Path<T> StripNearEqual(const Path<T>& path,
 	double max_dist_sqrd, bool is_closed_path)
 {
 	if (path.size() == 0) return Path<T>();
@@ -294,7 +294,7 @@ inline Path<T> StripNearEqual(const Path<T>& path,
 }
 
 template<typename T>
-inline Paths<T> StripNearEqual(const Paths<T>& paths, 
+inline Paths<T> StripNearEqual(const Paths<T>& paths,
 	double max_dist_sqrd, bool is_closed_path)
 {
 	Paths<T> result;
@@ -398,12 +398,12 @@ struct Rect {
 
 	bool Contains(const Rect<T>& rec) const
 	{
-		return rec.left >= left && rec.right <= right && 
+		return rec.left >= left && rec.right <= right &&
 			rec.top >= top && rec.bottom <= bottom;
 	}
 
 	void Scale(double scale) {
-		left *= scale; 
+		left *= scale;
 		top *= scale;
 		right *= scale;
 		bottom *= scale;
@@ -411,8 +411,8 @@ struct Rect {
 
 	bool IsEmpty() const { return bottom <= top || right <= left; };
 
-	bool Intersects(const Rect<T>& rec) const 
-	{ 
+	bool Intersects(const Rect<T>& rec) const
+	{
 		return (std::max(left, rec.left) < std::min(right, rec.right)) &&
 			(std::max(top, rec.top) < std::min(bottom, rec.bottom));
 	};
@@ -476,7 +476,7 @@ inline void CheckPrecision(int& precision)
 
 template <typename T>
 inline double CrossProduct(const Point<T>& pt1, const Point<T>& pt2, const Point<T>& pt3) {
-	return (static_cast<double>(pt2.x - pt1.x) * static_cast<double>(pt3.y - 
+	return (static_cast<double>(pt2.x - pt1.x) * static_cast<double>(pt3.y -
 		pt2.y) - static_cast<double>(pt2.y - pt1.y) * static_cast<double>(pt3.x - pt2.x));
 }
 
@@ -488,7 +488,7 @@ inline double CrossProduct(const Point<T>& vec1, const Point<T>& vec2)
 
 template <typename T>
 inline double DotProduct(const Point<T>& pt1, const Point<T>& pt2, const Point<T>& pt3) {
-	return (static_cast<double>(pt2.x - pt1.x) * static_cast<double>(pt3.x - pt2.x) + 
+	return (static_cast<double>(pt2.x - pt1.x) * static_cast<double>(pt3.x - pt2.x) +
 		static_cast<double>(pt2.y - pt1.y) * static_cast<double>(pt3.y - pt2.y));
 }
 
@@ -551,7 +551,7 @@ inline double Area(const Paths<T>& paths)
 template <typename T>
 inline bool IsPositive(const Path<T>& poly)
 {
-	// A curve has positive orientation [and area] if a region 'R' 
+	// A curve has positive orientation [and area] if a region 'R'
 	// is on the left when traveling around the outside of 'R'.
 	//https://mathworld.wolfram.com/CurveOrientation.html
 	//nb: This statement is premised on using Cartesian coordinates
@@ -561,7 +561,7 @@ inline bool IsPositive(const Path<T>& poly)
 inline bool SegmentsIntersect(const Point64& seg1a, const Point64& seg1b,
 	const Point64& seg2a, const Point64& seg2b, bool inclusive = false)
 {
-	if (inclusive) 
+	if (inclusive)
 	{
 		double res1 = CrossProduct(seg1a, seg2a, seg2b);
 		double res2 = CrossProduct(seg1b, seg2a, seg2b);
@@ -643,7 +643,7 @@ inline PointInPolygonResult PointInPolygon(const Point<T>& pt, const Path<T>& po
 		is_above = !is_above;
 		++cit;
 	}
-	return (val == 0) ? 
+	return (val == 0) ?
 		PointInPolygonResult::IsOutside :
 		PointInPolygonResult::IsInside;
 }
