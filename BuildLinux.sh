@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# opportunistically enable ccache
+if type -p ccache > /dev/null; then
+    export CMAKE_CXX_COMPILER_LAUNCHER="ccache"
+    export CMAKE_C_COMPILER_LAUNCHER="ccache"
+    ccache --zero-stats
+fi
 export ROOT=$(dirname $(readlink -f ${0}))
 
 # 读取环境变量 MY_DIR
