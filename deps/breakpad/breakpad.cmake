@@ -1,4 +1,4 @@
-set(patch_command git init && ${PATCH_CMD} ${CMAKE_CURRENT_LIST_DIR}/0001-crealityprint-build.patch)
+set(patch_command git init && ${PATCH_CMD} ${CMAKE_CURRENT_LIST_DIR}/0001-crealityprint-build.patch && ${PATCH_CMD} ${CMAKE_CURRENT_LIST_DIR}/0002-crealityprint-build.patch)
 orcaslicer_add_cmake_project(BREAKPAD
   # GIT_REPOSITORY https://github.com/aliyun/aliyun-oss-cpp-sdk.git
   # GIT_TAG v1.9.2
