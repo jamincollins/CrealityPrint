@@ -1,0 +1,10 @@
+--- a/src/common/module.cc	2025-03-24 14:03:14.392924428 -0600
++++ b/src/common/module.cc	2025-03-24 14:03:23.076248519 -0600
+@@ -46,6 +46,7 @@
+ #include <iostream>
+ #include <memory>
+ #include <utility>
++#include <algorithm>
+
+ namespace google_breakpad {
+
