@@ -141,7 +141,7 @@ class MainFrame : public DPIFrame
 
     // BBS
     wxBoxSizer* create_side_tools();
-    
+
 
     // MenuBar items changeable in respect to printer technology
     enum MenuItems
@@ -204,7 +204,7 @@ protected:
 
 public:
     MainFrame();
-    ~MainFrame() = default;
+    ~MainFrame();
 
     //BBS GUI refactor
     enum TabPosition
@@ -357,6 +357,12 @@ public:
 
     void        technology_changed();
 
+    // Handle window activation events to refresh the ProcessParamsPanel
+    void        OnWindowActivate(wxActivateEvent& event);
+
+    // Timer event handler to periodically refresh the ProcessParamsPanel
+    void        OnPanelRefreshTimer(wxTimerEvent& event);
+
     //BBS
     void        load_url(wxString url);
     void        load_printer_url(wxString url, wxString apikey = "");
@@ -376,7 +382,7 @@ public:
     VFA_Test_Dlg* m_vfa_test_dlg { nullptr };
     Retraction_Test_Dlg* m_retraction_calib_dlg{ nullptr };
     Retraction_Speed_Dlg*   m_retraction_speed_calib_dlg{nullptr};
-    Limit_Speed_Dlg*             m_limit_speed_dlg{nullptr};     
+    Limit_Speed_Dlg*             m_limit_speed_dlg{nullptr};
     Speed_Tower_Dlg*             m_speed_tower_dlg{nullptr};
     Jitter_Speed_Dlg*            m_jitter_speed_dlg{nullptr};
     Fan_Speed_Dlg*               m_fan_speed_dlg{nullptr};
@@ -416,7 +422,10 @@ public:
 
     //Creality
     bool m_tab_event_enabled{ true };
-    
+
+    // Timer for periodically refreshing the ProcessParamsPanel
+    wxTimer m_panel_refresh_timer;
+
     mutable int m_print_select{ ePrintAll };
     mutable int m_slice_select{ eSliceAll };
     // Button* m_publish_btn{ nullptr };
