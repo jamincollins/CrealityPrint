@@ -65,7 +65,7 @@ namespace GUI {
 
         m_textButtonSizer->AddStretchSpacer(1); // Add stretchable space before m_hideButton
 
-        m_hideButton = new ScalableButton(this, wxID_ANY, is_dark ? "button_hide_img_tooltip" : "button_hide_img_light", wxEmptyString, wxDefaultSize, 
+        m_hideButton = new ScalableButton(this, wxID_ANY, is_dark ? "button_hide_img_tooltip" : "button_hide_img_light", wxEmptyString, wxDefaultSize,
                                   wxDefaultPosition, wxBU_EXACTFIT | wxNO_BORDER, true, 10, true);
 
         m_hideButton->SetBackgroundColour(wxColour(54, 154, 56)); // Set button background color to grey
@@ -97,7 +97,7 @@ namespace GUI {
             m_text->Destroy();
         }
 
-        if (m_textButtonSizer) {  
+        if (m_textButtonSizer) {
             m_textButtonSizer->Clear();
         }
 
@@ -201,7 +201,7 @@ namespace GUI {
         if(m_hideButton) {
             wxBitmap button_bitmap = create_scaled_bitmap(is_dark ? "button_hide_img_tooltip" : "button_hide_img_light", this, 10);
             m_hideButton->SetBitmap(button_bitmap);
-            m_hideButton->SetBackgroundColour(text_btn_bg_color); 
+            m_hideButton->SetBackgroundColour(text_btn_bg_color);
         }
 
         if(m_text)
@@ -467,7 +467,7 @@ ParamsPanel::ParamsPanel( wxWindow* parent, wxWindowID id, const wxPoint& pos, c
 
         m_mode_view  = new SwitchButton(m_top_panel, wxID_ABOUT, is_dark ? "advanced_process_dark_checked" : "advanced_process_light_checked",
                                        is_dark ? "advanced_process_dark" : "advanced_process_light", true, wxSize(FromDIP(10), FromDIP(10)));
-        
+
         m_mode_view_box = new HoverBorderBox(m_top_panel, m_mode_view, wxDefaultPosition, wxSize(FromDIP(24),FromDIP(24)), wxTE_PROCESS_ENTER);
         m_mode_view->SetToolTip(_L("Advance parameters"));
 
@@ -495,7 +495,7 @@ ParamsPanel::ParamsPanel( wxWindow* parent, wxWindowID id, const wxPoint& pos, c
             }));
 
         m_btn_reset->Hide();  // no need to show it
-         
+
 
         // BBS: new layout
         //m_search_btn = new ScalableButton(m_top_panel, wxID_ANY, "search", wxEmptyString, wxDefaultSize, wxDefaultPosition, wxBU_EXACTFIT | wxNO_BORDER, true);
@@ -650,11 +650,11 @@ void ParamsPanel::create_layout()
     //        create_layout_process();
     //    }
     //}
-    //else 
+    //else
     //{
     //    create_layout_process();
     //}
-    
+
 }
 
 void ParamsPanel::create_layout_printerAndFilament()
@@ -716,7 +716,7 @@ void ParamsPanel::create_layout_printerAndFilament()
     }
 
     if (m_tab_print_layer) {
-        m_left_sizer->Add(m_tab_print_layer, 0, wxEXPAND);	
+        m_left_sizer->Add(m_tab_print_layer, 0, wxEXPAND);
     }
 
     {
@@ -766,7 +766,7 @@ void ParamsPanel::create_layout_printerAndFilament()
                 {
                     return;
                 }
-                
+
                 if (m_ws == WS_PRINTER)
                     dynamic_cast<TabPrinter*>(m_tab_printer)->changedSelectPrint(into_u8(itemString));
                 else
@@ -1139,6 +1139,8 @@ void ParamsPanel::create_layout_printerAndFilament()
 
     //this->SetSizer( m_top_sizer );
     this->Layout();
+    this->Refresh();
+    this->Update();
 }
 
 void ParamsPanel::create_layout_process()
@@ -1286,12 +1288,14 @@ void ParamsPanel::create_layout_process()
 
     //this->SetSizer( m_top_sizer );
     this->Layout();
+    this->Refresh();
+    this->Update();
 }
 
 void ParamsPanel::rebuild_panels()
 {
-    refresh_tabs();
     free_sizers();
+    refresh_tabs();
     create_layout();
 }
 
@@ -1351,6 +1355,9 @@ void ParamsPanel::OnActivate()
     Tab* cur_tab = dynamic_cast<Tab *> (m_current_tab);
     if (cur_tab)
         cur_tab->OnActivate();
+
+    // Light refresh without distrupting UI operations
+    this->Refresh(false);
 }
 
 void ParamsPanel::OnToggled(wxCommandEvent& event)
@@ -1403,7 +1410,23 @@ void ParamsPanel::OnToggledImageTooltip(wxCommandEvent& event)
 
     if(m_left_sizer) {
         m_left_sizer->Layout();
+        if (m_top_sizer) m_top_sizer->Layout();
+        this->Refresh(false);
     }
+}
+
+void ParamsPanel::ForceFullRefresh()
+{
+    // Use a gentle approach to avoid disrupting other operations
+    // Update layouts bottom-up
+    if (m_page_sizer) m_page_sizer->Layout();
+    if (m_page_view) m_page_view->Layout();
+    if (m_left_sizer) m_left_sizer->Layout();
+    if (m_top_sizer) m_top_sizer->Layout();
+
+    // Use a gentle refresh that's less likely to interfere with other rendering
+    this->Refresh(false);
+    this->Update();
 }
 
 // This is special, DO NOT call it from outer except from Tab
@@ -1449,20 +1472,23 @@ void ParamsPanel::set_active_tab(wxPanel* tab)
             {m_tab_printer, m_staticline_printer}})) {
         if (!t.first) continue;
         t.first->Show(tab == t.first);
-   /*     m_h_tabbar_printer->Show(tab == m_tab_printer || tab == m_tab_filament);
-        m_v_tabbar_printer->Show(tab == m_tab_printer || tab == m_tab_filament);*/
-        m_button_save->Show(tab == m_tab_printer || tab == m_tab_filament);
-        m_button_save->Show(false);
-        //m_button_save_as->Show(tab == m_tab_printer || tab == m_tab_filament);
-        m_button_delete->Show((tab == m_tab_printer || tab == m_tab_filament) && cur_tab->m_presets->get_edited_preset().is_user());
-        m_button_delete->Show(false);
-        m_button_reset->Show(tab == m_tab_printer || tab == m_tab_filament);
-        m_button_reset->Show(false);
         if (!t.second) continue;
         t.second->Show(tab == t.first);
-        //m_left_sizer->GetItem(t)->SetProportion(tab == t ? 1 : 0);
     }
+    m_button_save->Show(tab == m_tab_printer || tab == m_tab_filament);
+    m_button_save->Show(false);
+    m_button_delete->Show((tab == m_tab_printer || tab == m_tab_filament) && cur_tab->m_presets->get_edited_preset().is_user());
+    m_button_delete->Show(false);
+    m_button_reset->Show(tab == m_tab_printer || tab == m_tab_filament);
+    m_button_reset->Show(false);
+
     m_left_sizer->Layout();
+
+
+    if (m_top_sizer) m_top_sizer->Layout();
+    this->Refresh(false);
+    this->Update();
+
     if (auto dialog = dynamic_cast<wxDialog*>(GetParent())) {
         wxString title = cur_tab->type() == Preset::TYPE_FILAMENT ? _L("Filament settings") : _L("Printer settings");
         dialog->SetTitle(title);
@@ -1768,7 +1794,7 @@ void ParamsPanel::notify_config_changed()
         }
     }
     refreshCurTreeItem(is_dirt);
-    
+
     // m_btn_reset->Enable(is_dirt);  // no need this reset button
 }
 
@@ -1783,8 +1809,8 @@ void ParamsPanel::sys_color_changed()
 {
     bool is_dark = wxGetApp().dark_mode();
     m_process_icon->SetBitmap_(is_dark ? "process_dark_default" : "process_light_default");
-  //  m_btn_reset->SetBitmap_(is_dark ? "dot" : "undo");    
-    //m_setting_btn->SetBitmap_(is_dark ? "table" : "table"); 
+  //  m_btn_reset->SetBitmap_(is_dark ? "dot" : "undo");
+    //m_setting_btn->SetBitmap_(is_dark ? "table" : "table");
 
     m_mode_view->GetOnImg() = ScalableBitmap(m_mode_view, is_dark ? "advanced_process_dark_checked" : "advanced_process_light_checked", FromDIP(14));
     m_mode_view->GetOffImg() = ScalableBitmap(m_mode_view, is_dark ? "advanced_process_dark" : "advanced_process_light", FromDIP(14));
@@ -1852,6 +1878,9 @@ void ParamsPanel::tab_page_relayout()
 
     if(m_left_sizer) {
         m_left_sizer->Layout();
+        if (m_top_sizer) m_top_sizer->Layout();
+        this->Refresh(false);
+        this->Update();
     }
 
 }
@@ -1962,7 +1991,7 @@ void ParamsPanel::delete_subwindows()
 
     if(m_color_border_box)
     {
-        delete m_color_border_box;      
+        delete m_color_border_box;
         m_color_border_box = nullptr;
     }
 }
@@ -2074,7 +2103,7 @@ void ParamsPanel::OnPanelShowInit(const std::string& printer /* = "" */)
         m_tabbar_ctrl = m_tabbar_printer;
         m_filament_tabCtrl->Hide();
         m_printer_tabCtrl->Show();
-       
+
         m_tab_printer->Show();
         m_tab_filament->Hide();
     }
@@ -2115,7 +2144,7 @@ void ParamsPanel::OnPanelShowExit()
 
 void ParamsPanel::OnParentDialogOpen()
 {
-    Preset preset = m_ws == WS_PRINTER ? wxGetApp().preset_bundle->printers.get_selected_preset() 
+    Preset preset = m_ws == WS_PRINTER ? wxGetApp().preset_bundle->printers.get_selected_preset()
         : wxGetApp().preset_bundle->filaments.get_selected_preset();
 
     std::string name = from_u8(preset.label(false)).ToStdString();
@@ -2139,9 +2168,10 @@ void ParamsPanel::OnParentDialogOpen()
     m_printerType = _L("ALL");
     m_curVentor = _L("ALL"); //getVendor(preset);
     m_curPreset = from_u8(preset.label(true));
-    
+
     filteredData(m_curVentor, m_printerType);
     updateItemState();
+    this->Refresh(false);
 }
 
 void ParamsPanel::updateItemState()
@@ -2211,7 +2241,7 @@ void ParamsPanel::updateItemState()
         if (preset.is_default || preset.is_system)
             isSys = true;
     }
-    
+
 
     function setSystemType = [this]() {
         m_btn_save->Hide();
@@ -2255,6 +2285,8 @@ void ParamsPanel::updateItemState()
 
     //选中状态
     Layout();
+    Refresh(false);
+    Update();
 }
 
 void ParamsPanel::onChangedSysAndUser(PageState ps)
@@ -2331,7 +2363,7 @@ void ParamsPanel::initData()
             {
                 sysPresets.insert(std::make_pair(presetType, preset));
                 m_systemDatas.insert(std::make_pair(ventor, sysPresets));
-            }  
+            }
         }
         else if (preset.is_project_embedded)
         {
@@ -2343,7 +2375,7 @@ void ParamsPanel::initData()
                 std::multimap<std::string, Preset> presets;
                 presets.insert(std::make_pair(presetType, preset));
                 m_userDatas.insert(std::make_pair(ventor, presets));
-            } 
+            }
         }
     }
 }
@@ -2543,7 +2575,7 @@ void ParamsPanel::getDatas(std::vector<wxString>& systemPrintList, std::vector<w
                     firstValue = data;
                     break;
                 }
-                
+
                 m_curVentor = m_curVentor == "" ? firstValue : m_curVentor;
 
                 if (presetType != "" && ventor == m_curVentor || m_curVentor == _L("ALL"))
@@ -2583,7 +2615,7 @@ void ParamsPanel::getDatas(std::vector<wxString>& systemPrintList, std::vector<w
 
                 if (presetType != "" && ventor == m_curVentor || m_curVentor == _L("ALL"))
                     printList.insert(presetType);
-                
+
                 std::string firstType;
                 for (const auto& data : printList)
                 {
@@ -2604,7 +2636,7 @@ void ParamsPanel::getDatas(std::vector<wxString>& systemPrintList, std::vector<w
                         else {
                             userPrintList.push_back(itemName);
                         }
-                       
+
                     }
                 }
                 /*if (((presetType == m_printerType && ventor == m_curVentor )|| res == "0" || m_printerType == _L("ALL")))
@@ -2624,7 +2656,7 @@ void ParamsPanel::updateVentors(const std::unordered_set<wxString>& ventors)
             tp->updateVentorList(ventors, _L("ALL"));
         }
     }
-    else 
+    else
     {
         TabFilament* tf = dynamic_cast<TabFilament*>(m_tab_filament);
         if (tf)
@@ -2683,7 +2715,7 @@ void ParamsPanel::updatePresetsList(const std::vector<wxString>& systemList, con
             m_preset_listBox->AppendItem(child1, ellipsizedText, -1, -1, new MyTreeItemData(printName));
         }
         m_preset_listBox->Expand(child1);
-    }    
+    }
 
     if (systemList.size()) {
         wxTreeItemId child2 = m_preset_listBox->AppendItem(m_preset_listBox->GetRootItem(), _L("System presets"), -1, -1,
@@ -2694,7 +2726,7 @@ void ParamsPanel::updatePresetsList(const std::vector<wxString>& systemList, con
         }
         m_preset_listBox->Expand(child2);
     }
-    
+
     wxFont treeFont = m_preset_listBox->GetFont();
     treeFont.SetPointSize(10);
     m_preset_listBox->SetFont(treeFont);
@@ -2708,6 +2740,7 @@ void ParamsPanel::setCurVentor(const std::string& curVentor)
     m_curVentor = curVentor;
     m_printerType = _L("ALL");
     filteredData(m_curVentor, m_printerType, 1);
+    this->Refresh(false);
 }
 
 void ParamsPanel::setCurType(const std::string& curType)
@@ -2716,6 +2749,7 @@ void ParamsPanel::setCurType(const std::string& curType)
         return;
     m_printerType = curType;
     filteredData(m_curVentor, m_printerType, 2);
+    this->Refresh(false);
 }
 
 std::string ParamsPanel::getPresetType(Preset preset)
@@ -2889,7 +2923,7 @@ void ParamsPanel::layoutPrinterAndFilament()
     //
     m_color_border_box->SetSizer(m_tmp_sizer);
     //m_color_border_box->SetBackgroundColour(wxColour(0, 255, 0));
-  
+
     if (m_mode_region)
         m_mode_region->Bind(wxEVT_TOGGLEBUTTON, &ParamsPanel::OnToggled, this);
     if (m_mode_view)
@@ -3095,6 +3129,11 @@ ProcessParamsPanel::ProcessParamsPanel(wxWindow* parent, wxWindowID id, const wx
     const wxSize& size, long style, const wxString& type)
     :ParamsPanel(parent, id, pos, size, style, type)
 {
+    // Bind the show event to ensure proper rendering
+    Bind(wxEVT_SHOW, &ProcessParamsPanel::OnShow, this);
+
+    // Set window style to ensure it stays visible even when inactive
+    SetWindowStyle(GetWindowStyle() | wxFULL_REPAINT_ON_RESIZE);
 
 }
 
@@ -3103,10 +3142,35 @@ ProcessParamsPanel::~ProcessParamsPanel()
 
 }
 
+void ProcessParamsPanel::OnShow(wxShowEvent& event)
+{
+    event.Skip();  // Allow normal processing
+    if (event.IsShown()) {
+        // Only refresh when the panel is being shown
+        this->Refresh(false);
+
+        // Also refresh parent containers to ensure all components are properly rendered
+        wxWindow* parent = GetParent();
+        if (parent) {
+            parent->Refresh(false);
+        }
+    }
+}
+
 void ProcessParamsPanel::create_layout()
 {
     layoutOther();
     create_layout_process();
+
+    // Schedule a single refresh after layout creation with CallAfter
+    // to ensure the window is fully created before refreshing
+    CallAfter([this]() {
+        if (this->IsShown()) {
+            // Light refresh that's less likely to interfere with other operations
+            this->Refresh(false);
+            this->Update();
+        }
+    });
 }
 
 } // GUI

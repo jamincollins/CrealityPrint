@@ -127,7 +127,7 @@ private:
     void         OnPaint(wxPaintEvent& event);
 
 private:
-    wxTreeItemId m_lastHoverItem; // ¼ÇÂ¼ÉÏÒ»´ÎµÄÐüÍ£Ïî
+    wxTreeItemId m_lastHoverItem; // ï¿½ï¿½Â¼ï¿½ï¿½Ò»ï¿½Îµï¿½ï¿½ï¿½Í£ï¿½ï¿½
 };
 
 class ParamsPanel : public wxPanel
@@ -248,6 +248,7 @@ class ParamsPanel : public wxPanel
 		ParamsPanel( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1800,1080 ), long style = wxTAB_TRAVERSAL, const wxString& type = wxEmptyString );
 		~ParamsPanel();
 
+        void ForceFullRefresh();
         void rebuild_panels();
         virtual void create_layout();
         void create_layout_printerAndFilament();
@@ -351,7 +352,7 @@ class ParamsPanel : public wxPanel
         wxButton* m_btn_user = nullptr;
         wxPanel* m_bottomBtnsPanel = nullptr;
         CustomTreeCtrl* m_preset_listBox  = nullptr;
-        
+
         std::unordered_set<wxString>  m_print_list;
         std::unordered_set<wxString>  m_ventor_list;
         std::vector<wxString> m_system_print_list;
@@ -363,9 +364,11 @@ class ParamsPanel : public wxPanel
 class ProcessParamsPanel : public ParamsPanel
 {
 public:
-    ProcessParamsPanel(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, 
+    ProcessParamsPanel(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
         const wxSize& size = wxSize(1800, 1080), long style = wxTAB_TRAVERSAL, const wxString& type = wxEmptyString);
     ~ProcessParamsPanel();
+
+    void OnShow(wxShowEvent& event);
 
     void create_layout() override;
 private:
