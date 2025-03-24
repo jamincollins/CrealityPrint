@@ -13,7 +13,7 @@
 //#include <wx/glcanvas.h>
 #include <wx/filename.h>
 #include <wx/debug.h>
-#include <wx/utils.h> 
+#include <wx/utils.h>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/log/trivial.hpp>
@@ -188,7 +188,7 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
     set_miniaturizable(GetHandle());
 #endif
     wxGetApp().start_http_server();
-    //if (!wxGetApp().app_config->has("user_mode")) { 
+    //if (!wxGetApp().app_config->has("user_mode")) {
     //    wxGetApp().app_config->set("user_mode", "simple");
     //    wxGetApp().app_config->set_bool("developer_mode", false);
     //    wxGetApp().app_config->save();
@@ -485,6 +485,10 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
     //FIXME it seems this method is not called on application start-up, at least not on Windows. Why?
     // The same applies to wxEVT_CREATE, it is not being called on startup on Windows.
     Bind(wxEVT_ACTIVATE, [this](wxActivateEvent& event) {
+        // Call our window activation handler to refresh the ProcessParamsPanel
+        OnWindowActivate(event);
+
+        // Original handler code for plater activation
         if (m_plater != nullptr && event.GetActive())
             m_plater->on_activate();
         event.Skip();
@@ -500,7 +504,7 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
         wxGetApp().plater()->get_current_canvas3D()->request_extra_frame();
         event.Skip();
     });
-#endif   
+#endif
 
     update_ui_from_settings();    // FIXME (?)
 
@@ -566,12 +570,12 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
             return;
         }
         else if (evt.CmdDown() && evt.GetKeyCode() == 'G') { if (can_export_gcode()) { wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_EXPORT_SLICED_FILE)); } evt.Skip(); return; }
-        if (evt.CmdDown() && evt.GetKeyCode() == 'J') { m_printhost_queue_dlg->Show(); return; }    
+        if (evt.CmdDown() && evt.GetKeyCode() == 'J') { m_printhost_queue_dlg->Show(); return; }
         if (evt.CmdDown() && evt.GetKeyCode() == 'N') { m_plater->new_project(); return;}
         if (evt.CmdDown() && evt.GetKeyCode() == 'O') { m_plater->load_project(); return;}
         if (evt.CmdDown() && evt.ShiftDown() && evt.GetKeyCode() == 'S') { if (can_save_as()) m_plater->save_project(true, FT_PROJECT); return;}
         else if (evt.CmdDown() && evt.GetKeyCode() == 'S') { if (can_save()) m_plater->save_project(false, FT_PROJECT); return;}
-        if (evt.CmdDown() && evt.GetKeyCode() == 'F') { 
+        if (evt.CmdDown() && evt.GetKeyCode() == 'F') {
             if (m_plater && (m_tabpanel->GetSelection() == TabPosition::tp3DEditor || m_tabpanel->GetSelection() == TabPosition::tpPreview)) {
                 m_plater->sidebar().can_search();
             }
@@ -774,7 +778,7 @@ void MainFrame::update_layout()
                 if (!preview_only_hint())
                     return;
             }
-            else if (evt.GetId() == tpDeviceMgr){ 
+            else if (evt.GetId() == tpDeviceMgr){
                 if (m_printer_mgr_view) {
                     m_printer_mgr_view->on_switch_to_device_page();
                 }
@@ -824,10 +828,34 @@ void MainFrame::update_layout()
     Thaw();
 }
 
+MainFrame::~MainFrame()
+{
+    BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ": MainFrame destructor called";
+
+    // Make sure the timer is stopped and event handler is unbound
+    if (m_panel_refresh_timer.IsRunning()) {
+        BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << ": Stopping panel refresh timer in destructor";
+        m_panel_refresh_timer.Stop();
+    }
+
+    // Unbind the timer event to prevent any further calls to OnPanelRefreshTimer
+    Unbind(wxEVT_TIMER, &MainFrame::OnPanelRefreshTimer, this, m_panel_refresh_timer.GetId());
+}
+
 // Called when closing the application and when switching the application language.
 void MainFrame::shutdown()
 {
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << "MainFrame::shutdown enter";
+
+    // Stop the panel refresh timer to prevent accessing destroyed objects
+    if (m_panel_refresh_timer.IsRunning()) {
+        BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << ": Stopping panel refresh timer";
+        m_panel_refresh_timer.Stop();
+    }
+
+    // Unbind the timer event to prevent any further calls to OnPanelRefreshTimer
+    Unbind(wxEVT_TIMER, &MainFrame::OnPanelRefreshTimer, this, m_panel_refresh_timer.GetId());
+
     // BBS: backup
     Slic3r::set_backup_callback(nullptr);
 #ifdef _WIN32
@@ -958,7 +986,7 @@ void  MainFrame::trackEvent(const std::string& event, const std::string& data)
     } catch (const std::exception& e) {
         BOOST_LOG_TRIVIAL(error) << "MainFrame::trackEvent: " << e.what();
     }
-    
+
 }
 void MainFrame::init_tabpanel() {
     // wxNB_NOPAGETHEME: Disable Windows Vista theme for the Notebook background. The theme performance is terrible on
@@ -975,6 +1003,27 @@ void MainFrame::init_tabpanel() {
     m_tabpanel->Hide();
     m_settings_dialog.set_tabpanel(m_tabpanel);
 
+    // Set up a timer to periodically refresh the ProcessParamsPanel, but with a lower frequency
+    // to avoid conflicts with ImGui rendering cycles
+
+    // First ensure any existing timer is stopped and unbound to prevent memory leaks
+    if (m_panel_refresh_timer.IsRunning()) {
+        m_panel_refresh_timer.Stop();
+    }
+
+    // Unbind any existing timer events to prevent double binding
+    Unbind(wxEVT_TIMER, &MainFrame::OnPanelRefreshTimer, this, m_panel_refresh_timer.GetId());
+
+    // Set up the timer with proper ownership
+    m_panel_refresh_timer.SetOwner(this);
+
+    // Bind the timer event with explicit ID to ensure proper cleanup
+    Bind(wxEVT_TIMER, &MainFrame::OnPanelRefreshTimer, this, m_panel_refresh_timer.GetId());
+
+    // Start the timer with a lower frequency (500ms instead of 200ms) to reduce conflicts with ImGui
+    if (IsShown() && IsEnabled()) {
+        m_panel_refresh_timer.Start(1000);
+    }
 #ifdef __WXMSW__
     m_tabpanel->Bind(wxEVT_BOOKCTRL_PAGE_CHANGED, [this](wxBookCtrlEvent& e) {
 #else
@@ -990,17 +1039,56 @@ void MainFrame::init_tabpanel() {
                 if (m_tab_event_enabled)
                     wxPostEvent(m_plater, SimpleEvent(EVT_GLVIEWTOOLBAR_3D));
                 m_param_panel->OnActivate();
+
+                // Use CallAfter to ensure the refresh happens after the tab change is complete
+                CallAfter([this]() {
+                    if (m_param_panel) {
+                        BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << ": Tab changed to Prepare, scheduling refresh of ProcessParamsPanel";
+
+                        // Schedule a delayed refresh to ensure the panel is visible after tab change
+                        if (m_param_panel) {
+                            m_param_panel->ForceFullRefresh();
+                            m_tabpanel->Refresh(false); // Use false to reduce flickering
+                        }
+
+                        // Restart the timer if it's not running
+                        if (!m_panel_refresh_timer.IsRunning()) {
+                            m_panel_refresh_timer.Start(1000); // 1 second interval
+                        }
+                    }
+                });
             }
             else if (sel == tpPreview) {
                 if (m_tab_event_enabled)
                     wxPostEvent(m_plater, SimpleEvent(EVT_GLVIEWTOOLBAR_PREVIEW));
                 m_param_panel->OnActivate();
+
+                // Use CallAfter to ensure the refresh happens after the tab change is complete
+                CallAfter([this]() {
+                    if (m_param_panel) {
+                        BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << ": Tab changed to Preview, scheduling refresh of ProcessParamsPanel";
+
+                        // Schedule a delayed refresh to ensure the panel is visible after tab change
+                        if (m_param_panel) {
+                            m_param_panel->ForceFullRefresh();
+                            m_tabpanel->Refresh(false); // Use false to reduce flickering
+                        }
+
+                        // Restart the timer if it's not running
+                        if (!m_panel_refresh_timer.IsRunning()) {
+                            m_panel_refresh_timer.Start(1000); // 1 second interval
+                        }
+                    }
+                });
             }
         }
         //else if (panel == m_param_panel)
         //    m_param_panel->OnActivate();
         else if (panel == m_monitor) {
-            //monitor
+            // When switching to monitor tab, stop the timer to avoid unnecessary refreshes
+            if (m_panel_refresh_timer.IsRunning()) {
+                m_panel_refresh_timer.Stop();
+            }
         }
 #ifndef __APPLE__
         if (sel == tp3DEditor) {
@@ -1067,7 +1155,7 @@ void MainFrame::init_tabpanel() {
         m_printer_view->load_url(url, key);
     });
     m_printer_view->Hide();
-    
+
     //New device management object
     m_printer_mgr_view = new PrinterMgrView(m_tabpanel);
     m_printer_mgr_view->SetId(MainFrame::tpDeviceMgr);
@@ -1196,7 +1284,7 @@ bool MainFrame::preview_only_hint()
         if (preview_only_to_editor) {
             m_plater->new_project();
             preview_only_to_editor = false;
-            
+
             return true;
         }
         else{//Event cannot be directly passed to TopBar object
@@ -2072,7 +2160,7 @@ void MainFrame::update_side_button_style()
     m_slice_btn->SetExtraSize(wxSize(FromDIP(38), FromDIP(10)));
     m_slice_btn->SetBottomColour(wxColour(0x3B4446));*/
     StateColor m_btn_bg_enable = StateColor(
-        std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed), 
+        std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed),
         std::pair<wxColour, int>(wxColour(48, 221, 112), StateColor::Hovered),
         std::pair<wxColour, int>(wxColour(0, 150, 136), StateColor::Normal)
     );
@@ -2139,7 +2227,7 @@ void MainFrame::update_slice_print_status(SlicePrintEventType event, bool can_sl
     m_slice_enable = enable_slice;
     m_print_enable = enable_print;
     topbar()->EnableUpload3mf();
-   
+
 }
 
 
@@ -2232,7 +2320,7 @@ void MainFrame::on_sys_color_changed()
         dynamic_cast<Notebook*>(m_tabpanel)->Rescale();
 #endif
 #endif
-    
+
     // BBS
     m_tabpanel->Rescale();
     m_param_panel->sys_color_changed();
@@ -2252,19 +2340,19 @@ void MainFrame::on_sys_color_changed()
     wxGetApp().plate_tab->sys_color_changed();
 
     MenuFactory::sys_color_changed(m_menubar);
-    
+
     // Only update home page. No need to reload others
     auto dark = Slic3r::GUI::wxGetApp().dark_mode();
     m_webview->Browse()->SetUserAgent(wxString::Format("BBL-Slicer/v%s (%s) Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)", SLIC3R_VERSION,
             dark ? "dark" : "light"));
     m_webview->Browse()->Reload();
 
- 
+
     m_topbar->Rescale(false);
     DM::AppMgr::Ins().SystemThemeChanged();
     wxGetApp().UpdateDarkUI(m_topbar);
     this->Refresh();
-    
+
 }
 
 #ifdef _MSC_VER
@@ -2285,7 +2373,7 @@ static wxMenu* generate_help_menu()
     append_menu_item(helpMenu, wxID_ANY, _L("Keyboard Shortcuts") + sep + "&?", _L("Show the list of the keyboard shortcuts"),
         [](wxCommandEvent&) { wxGetApp().keyboard_shortcuts(); });
     // Show Beginner's Tutorial
-    
+
     // append_menu_item(helpMenu, wxID_ANY, _L("Setup Wizard"), _L("Setup Wizard"), [](wxCommandEvent &) {wxGetApp().ShowUserGuide();});
 
     helpMenu->AppendSeparator();
@@ -2468,7 +2556,7 @@ void MainFrame::init_menubar_as_editor()
         m_recent_projects.LoadThumbnails();
 
         Bind(wxEVT_UPDATE_UI, [this](wxUpdateUIEvent& evt) {
-            evt.Enable(can_open_project() && (m_recent_projects.GetCount() > 0)); 
+            evt.Enable(can_open_project() && (m_recent_projects.GetCount() > 0));
             }, recent_projects_submenu->GetId());
 
         // BBS: close save project
@@ -2694,7 +2782,7 @@ void MainFrame::init_menubar_as_editor()
 #if 0
         // BBS Delete selected
         append_menu_item(editMenu, wxID_ANY, _L("Delete selected") + "\tBackSpace",
-            _L("Deletes the current selection"),[this](wxCommandEvent&) { 
+            _L("Deletes the current selection"),[this](wxCommandEvent&) {
                 m_plater->remove_selected();
             },
             "", nullptr, [this](){return can_delete(); }, this);
@@ -2730,7 +2818,7 @@ void MainFrame::init_menubar_as_editor()
 
         // BBS Select All
         append_menu_item(editMenu, wxID_ANY, _L("Select all") + "\t" + ctrl + "A",
-            _L("Selects all objects"), [this, handle_key_event](wxCommandEvent&) { 
+            _L("Selects all objects"), [this, handle_key_event](wxCommandEvent&) {
                 wxKeyEvent e;
                 e.SetEventType(wxEVT_KEY_DOWN);
                 e.SetControlDown(true);
@@ -3073,7 +3161,7 @@ void MainFrame::init_menubar_as_editor()
             ;
         },
         this);
-        
+
     append_menu_item(calibMenu, wxID_ANY, _L("Tolerance Test"), _L("Tolerance Test"),
         [this](wxCommandEvent&) {
             {
@@ -3103,7 +3191,7 @@ void MainFrame::init_menubar_as_editor()
             m_vfa_test_dlg->ShowModal();
         },
         "", nullptr,
-        [this]() {return m_plater->is_view3D_shown()&& m_tabpanel->GetSelection() == TabPosition::tp3DEditor;; }, this); 
+        [this]() {return m_plater->is_view3D_shown()&& m_tabpanel->GetSelection() == TabPosition::tp3DEditor;; }, this);
 
      // creality add
     auto speed_menu = new wxMenu();
@@ -3183,7 +3271,7 @@ void MainFrame::init_menubar_as_editor()
         },
         this);
     append_menu_item(
-        acc_menu, wxID_ANY, _L("Acceleration tower"), _L("Acceleration tower"), 
+        acc_menu, wxID_ANY, _L("Acceleration tower"), _L("Acceleration tower"),
         [this](wxCommandEvent&) {
             if (!m_acc_tower_dlg)
                 m_acc_tower_dlg = new Acceleration_Tower_Dlg((wxWindow*) this, wxID_ANY, m_plater);
@@ -3255,7 +3343,7 @@ void MainFrame::init_menubar_as_editor()
         m_topbar->AddDropDownSubMenu(viewMenu, _L("View"));
     //BBS add Preference
 
-   
+
 	m_topbar->AddDropDownSubMenu(calibMenu, _L("Calibration"));
 
     //// no need the preferences menu in dropdown menu as requested
@@ -3280,9 +3368,9 @@ void MainFrame::init_menubar_as_editor()
     // SoftFever calibrations
 
     // Flowrate
-    
-    // help 
-    
+
+    // help
+
 #else
     m_menubar->Append(fileMenu, wxString::Format("&%s", _L("File")));
     if (editMenu)
@@ -3593,7 +3681,7 @@ public:
         scrolledWindow->SetScrollRate(5, 5);
         wxBoxSizer* sizer_body = new wxBoxSizer(wxVERTICAL);
         m_scrolledWindowSizer  = sizer_body;
-        
+
         scrolledWindow->SetSizer(sizer_body);
         panelBoxSizer->Add(scrolledWindow);
         panel->SetSizer(panelBoxSizer);
@@ -3634,7 +3722,7 @@ public:
         this->Fit();
 
         this->Center();
- 
+
     }
 
     void showMiltiFile(const std::list<PresetBundle::STOverrideConfirmFile*>& lstOverrideConfim) {
@@ -3705,7 +3793,7 @@ public:
     int getClickedButtonValue() { return m_nClickedButtonValue; }
 
 private:
-    wxPanel* createLineData(wxWindow* parent, wxString title, wxString fileName) { 
+    wxPanel* createLineData(wxWindow* parent, wxString title, wxString fileName) {
         wxPanel* panel = new wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
                                      wxTAB_TRAVERSAL | wxBG_STYLE_COLOUR);
 
@@ -3760,7 +3848,7 @@ void MainFrame::export_config(const wxString& export_type)
 {
     ExportConfigsDialog export_configs_dlg(nullptr, export_type);
     export_configs_dlg.ShowModal();
-    return; 
+    return;
 
     // Generate a cummulative configuration for the selected print, filaments and printer.
     wxDirDialog dlg(this, _L("Choose a directory"),
@@ -3833,7 +3921,7 @@ void MainFrame::load_config_file()
             iter++;
         }
     }
-    
+
     bool update = false;
     /*wxGetApp().preset_bundle->import_presets(
         cfiles,
@@ -4418,6 +4506,105 @@ void MainFrame::technology_changed()
     PrinterTechnology pt = plater()->printer_technology();
     if (int id = m_menubar->FindMenu(pt == ptFFF ? _omitL("Material Settings") : _L("Filament Settings")); id != wxNOT_FOUND)
         m_menubar->SetMenuLabel(id, pt == ptSLA ? _omitL("Material Settings") : _L("Filament Settings"));
+}
+
+void MainFrame::OnPanelRefreshTimer(wxTimerEvent& event)
+{
+    // First check if we're in a valid state to refresh the panel
+    if (!this || !wxIsMainThread() || !IsShown() || !IsEnabled()) {
+        // If we're in an invalid state, stop the timer to prevent further calls
+        if (m_panel_refresh_timer.IsRunning()) {
+            m_panel_refresh_timer.Stop();
+        }
+        return;
+    }
+
+    // Check if the tabpanel still exists (could be destroyed during shutdown)
+    if (!m_tabpanel) {
+        // If tabpanel is gone, stop the timer to prevent further calls
+        if (m_panel_refresh_timer.IsRunning()) {
+            m_panel_refresh_timer.Stop();
+        }
+        return;
+    }
+
+    try {
+        // Get the current tab position
+        int current_tab = m_tabpanel->GetSelection();
+
+        // Only refresh the ProcessParamsPanel if we're on the Prepare (tp3DEditor) or Preview (tpPreview) tabs
+        if (current_tab == tp3DEditor || current_tab == tpPreview) {
+            // Check if we have a valid param panel
+            if (m_param_panel && m_param_panel->GetParent()) {
+                // Additional safety check - make sure the panel is still valid
+                wxWindow* parent = m_param_panel->GetParent();
+                if (!parent || !parent->IsShown()) {
+                    return;
+                }
+
+                // Force the panel to be shown regardless of focus state
+                m_param_panel->Show(true);
+
+                // Use a gentler refresh that's less likely to interfere with other operations
+                // Don't force a layout update here - this can interfere with ImGui
+                m_param_panel->Refresh(false);
+
+                // Make sure the panel is visible by bringing it to the front
+                m_param_panel->Raise();
+            }
+        } else {
+            // If we're not on Prepare or Preview tabs, no need to keep refreshing
+            if (m_panel_refresh_timer.IsRunning()) {
+                m_panel_refresh_timer.Stop();
+            }
+        }
+    } catch (const std::exception& e) {
+        // Log any exceptions but don't let them crash the application
+        BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << ": Exception during panel refresh: " << e.what();
+        // Stop the timer if we encounter an exception
+        if (m_panel_refresh_timer.IsRunning()) {
+            m_panel_refresh_timer.Stop();
+        }
+    } catch (...) {
+        // Catch any other exceptions
+        BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << ": Unknown exception during panel refresh";
+        // Stop the timer if we encounter an exception
+        if (m_panel_refresh_timer.IsRunning()) {
+            m_panel_refresh_timer.Stop();
+        }
+    }
+}
+
+void MainFrame::OnWindowActivate(wxActivateEvent& event)
+{
+    // Use a static flag to prevent recursive calls during event processing
+    static bool in_window_activate = false;
+
+    // If we're already processing this event, skip to prevent recursion
+    if (in_window_activate) {
+        event.Skip();
+        return;
+    }
+
+    // Set the flag to indicate we're processing this event
+    in_window_activate = true;
+
+    // Allow the event to propagate
+    event.Skip();
+
+    // Reset the flag when we're done
+    in_window_activate = false;
+
+    // Minimal window activation handler that doesn't perform refreshes directly
+    // Instead, let the timer handle refreshes to avoid conflicts with rendering
+    if (this && wxIsMainThread() && IsShown() && IsEnabled() && m_tabpanel) {
+        int current_tab = m_tabpanel->GetSelection();
+        if ((current_tab == tp3DEditor || current_tab == tpPreview) &&
+            !m_panel_refresh_timer.IsRunning()) {
+            // Start the timer if it's not already running and we're on a relevant tab
+            m_panel_refresh_timer.Start(1000);
+        }
+    }
 }
 
 //
