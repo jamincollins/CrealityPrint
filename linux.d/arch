@@ -1,5 +1,11 @@
 # these are the Arch Linux specific build functions
-FOUND_GTK3=$(pacman -Q gtk3)
+
+# if user is root no sudo
+if [ "$(id -u)" -eq 0 ]; then
+    SUDO=""
+else
+    SUDO="sudo"
+fi
 
 # Addtional Dev packages for CrealityPrint
 export REQUIRED_DEV_PACKAGES=(
@@ -35,10 +41,11 @@ then
     done
 
     if [ -n "${NEEDED_PKGS}" ]; then
-        sudo pacman -Syy --noconfirm ${NEEDED_PKGS}
+        $SUDO pacman -Syy --noconfirm ${NEEDED_PKGS}
     fi
     echo -e "done\n"
     exit 0
 fi
 
+FOUND_GTK3=$(pacman -Q gtk3)
 FOUND_GTK3_DEV=${FOUND_GTK3}
