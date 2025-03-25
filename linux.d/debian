@@ -1,4 +1,9 @@
-FOUND_GTK3=$(dpkg -l libgtk* | grep gtk-3)
+# if user is root no sudo
+if [ "$(id -u)" -eq 0 ]; then
+    SUDO=""
+else
+    SUDO="sudo"
+fi
 
 REQUIRED_DEV_PACKAGES=(
     autoconf
@@ -47,11 +52,12 @@ then
     # TODO: optimize this by checking which, if any, packages are already installed
 
     # install them all at once
-    sudo apt update
-    sudo apt install -y ${REQUIRED_DEV_PACKAGES[@]}
+    $SUDO apt update
+    $SUDO apt install -y ${REQUIRED_DEV_PACKAGES[@]}
 
     echo -e "done\n"
     exit 0
 fi
 
+FOUND_GTK3=$(dpkg -l libgtk* | grep gtk-3)
 FOUND_GTK3_DEV=$(dpkg -l libgtk* | grep gtk-3-dev || echo '')

@@ -1,4 +1,9 @@
-FOUND_GTK3=$(rpm -qa | grep -P '^gtk3' || true)
+# if user is root no sudo
+if [ "$(id -u)" -eq 0 ]; then
+    SUDO=""
+else
+    SUDO="sudo"
+fi
 
 REQUIRED_DEV_PACKAGES=(
     autoconf
@@ -39,10 +44,11 @@ then
     done
 
     if [ -n "${NEEDED_PKGS}" ]; then
-        sudo dnf install -y ${NEEDED_PKGS}
+        $SUDO dnf install -y ${NEEDED_PKGS}
     fi
     echo -e "done\n"
     exit 0
 fi
 
+FOUND_GTK3=$(rpm -qa | grep -P '^gtk3' || true)
 FOUND_GTK3_DEV=$(rpm -qa | grep -P '^gtk3-devel' || true)
