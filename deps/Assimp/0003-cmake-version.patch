@@ -1,0 +1,11 @@
+--- a/code/CMakeLists.txt.orig	2025-04-02 06:34:39.350197991 -0600
++++ b/code/CMakeLists.txt	2025-04-02 06:35:05.756943044 -0600
+@@ -42,7 +42,7 @@
+ # 3) Add libassimp using the file lists (eliminates duplication of file names between
+ #    source groups and library command)
+ #
+-cmake_minimum_required( VERSION 3.22 )
++cmake_minimum_required( VERSION 3.15 )
+ SET( HEADER_PATH ../include/assimp )
+ 
+ if(NOT ANDROID AND ASSIMP_ANDROID_JNIIOSYSTEM)

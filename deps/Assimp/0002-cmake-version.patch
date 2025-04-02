@@ -1,0 +1,11 @@
+--- a/CMakeLists.txt.orig	2025-04-02 05:59:14.940417534 -0600
++++ b/CMakeLists.txt	2025-04-02 05:59:35.847143992 -0600
+@@ -38,7 +38,7 @@
+ SET(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
+ SET(CMAKE_POLICY_DEFAULT_CMP0092 NEW)
+ 
+-CMAKE_MINIMUM_REQUIRED( VERSION 3.22 )
++CMAKE_MINIMUM_REQUIRED( VERSION 3.15 )
+ 
+ # Experimental USD importer: disabled, need to opt-in
+ # Note: assimp github PR automatic checks will fail the PR due to compiler warnings in
