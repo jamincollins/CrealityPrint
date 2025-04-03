@@ -1,4 +1,4 @@
-image: ubuntu:20.04
+image: ${UBUNTU_IMAGE}
 
 variables:
   DEBIAN_FRONTEND: noninteractive
@@ -16,13 +16,14 @@ before_script:
   - ./BuildLinux.sh -u
 
 cache:
-  key: ${CI_COMMIT_REF_SLUG}
+  key: ${CI_COMMIT_REF_SLUG}-${UBUNTU_IMAGE}
   paths:
     - ccache/
     - deps/build/destdir/
 
-build_deps:
+build_deps_20_04:
   stage: build_deps
+  image: ubuntu:20.04
   rules:
     - if: $CI_COMMIT_TAG
   script:
@@ -31,9 +32,41 @@ build_deps:
   artifacts:
     paths:
       - deps/build/destdir/
+    expire_in: 1 week
 
-linux-build:
+build_20_04:
   stage: build
+  image: ubuntu:20.04
+  needs:
+    - build_deps_20_04
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - chmod +x BuildLinux.sh
+    - ./BuildLinux.sh -csi
+  artifacts:
+    paths:
+      - build/CrealityPrint*.AppImage
+    expire_in: 1 week
+
+build_deps_24_04:
+  stage: build_deps
+  image: ubuntu:24.04
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - chmod +x BuildLinux.sh
+    - ./BuildLinux.sh -cd
+  artifacts:
+    paths:
+      - deps/build/destdir/
+    expire_in: 1 week
+
+build_24_04:
+  stage: build
+  image: ubuntu:24.04
+  needs:
+    - build_deps_24_04
   rules:
     - if: $CI_COMMIT_TAG
   script:
