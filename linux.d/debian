@@ -14,26 +14,28 @@ REQUIRED_DEV_PACKAGES=(
     file
     gettext
     git
+    libasound2-dev
     libcurl4-openssl-dev
     libdbus-1-dev
     libglew-dev
     libgstreamerd-3-dev
     libgtk-3-dev
+    liblzma-dev
     libmspack-dev
+    libopus-dev
     libosmesa6-dev
     libsecret-1-dev
+    libspeexdsp-dev
+    libsrtp2-dev
     libssl-dev
     libtool
     libudev-dev
+    libusrsctp-dev
+    libx264-dev
     ninja-build
+    python3-numpy
     texinfo
     wget
-    libx264-dev
-    libusrsctp-dev
-    libsrtp2-dev
-    libasound2-dev
-    libopus-dev
-    libspeexdsp-dev
 )
 
 if [[ -n "$UPDATE_LIB" ]]
