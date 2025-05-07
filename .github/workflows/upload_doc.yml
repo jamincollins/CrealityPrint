@@ -3,10 +3,12 @@ name: Publish docs to Wiki
 # Trigger this action only if there are changes pushed to the doc/** directory under the main branch
 on:
   push:
-    paths:
-      - doc/** # This includes all sub folders
     branches:
-      - main # This can be changed to any branch of your preference
+     - master
+     - main
+
+    paths:
+      - 'doc/**' # This includes all sub folders
 
   workflow_dispatch:
     inputs:
@@ -34,13 +36,13 @@ jobs:
         run: |
           git config --global user.name "$USER_NAME"
           git config --global user.email "$USER_NAME"@users.noreply.github.com
-          git clone https://"$USER_TOKEN"@github.com/SoftFever/"$REPOSITORY_NAME".wiki.git tmp_wiki
+          git clone https://"$USER_TOKEN"@github.com/"$USER_NAME"/"$REPOSITORY_NAME".wiki.git tmp_wiki
       # 4. Synchronize differences between `doc` & `tmp_wiki`
       # 5. Push new Wiki content
       - name: Push main repo content to wiki
-        run: |
-          # rsync -av --delete doc/ tmp_wiki/ --exclude .git
-          # cd tmp_wiki
-          # git add .
-          # git commit -m "Updated Wiki content" 
-          # git push origin master
+        run: |    
+          rsync -av --delete doc/ tmp_wiki/ --exclude .git
+          cd tmp_wiki
+          git add .
+          git commit -m "Updated Wiki content" 
+          git push origin master
